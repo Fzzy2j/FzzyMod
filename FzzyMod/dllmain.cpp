@@ -1,4 +1,10 @@
 #include <Windows.h>
+#include <chrono>
+#include <thread>
+#include <iostream>
+#include <vector>
+#include "InputHooker.h"
+#include "include/MinHook.h"
 
 #pragma region Proxy
 struct midimap_dll {
@@ -32,16 +38,57 @@ void WriteBytes(void* ptr, int byte, int size) {
 	VirtualProtect(ptr, size, curProtection, &temp);
 }
 
+uintptr_t FindAddress(uintptr_t ptr, std::vector<unsigned int> offsets)
+{
+	uintptr_t addr = ptr;
+	// runs through every offset of a pointer to get the address
+	for (unsigned int i = 0; i < offsets.size(); ++i) {
+		addr = *(uintptr_t*)addr;
+		addr += offsets[i];
+	}
+	return addr;
+}
+
 void ModSpeedometer() {
+
+	uintptr_t engineBase = (uintptr_t)GetModuleHandle("engine.dll") + 0x14C7A700;
+
+	// voice_forcemicrecord ConVar
+	uintptr_t srmmSettingBase = (uintptr_t)GetModuleHandle("engine.dll") + 0x8A159C;
+	uintptr_t srmmSetting = *(uintptr_t*)srmmSettingBase;
+
 	uintptr_t base = (uintptr_t)GetModuleHandle("ui(11).dll");
 	uintptr_t speedometer = base + 0x6AA50;
-
+	// fadeout when moving slowly
 	uintptr_t alwaysShow = speedometer + 0x12F;
-	WriteBytes((void*)alwaysShow, 0x90, 2);
+	// player positions on current and previous frame
 	uintptr_t position1 = speedometer + 0x7A;
-	WriteBytes((void*)position1, 0x12, 1);
 	uintptr_t position2 = speedometer + 0x8C;
-	WriteBytes((void*)position2, 0x12, 1);
+
+	// Include/Exclude Z Axis
+	// check if bit at pos 1 is 1
+	if ((srmmSetting & (1 << 1)) > 0) {
+		// overwrite to only include x&y axis
+		WriteBytes((void*)position1, 0x12, 1);
+		WriteBytes((void*)position2, 0x12, 1);
+	}
+	else {
+		// overwrite back to default values
+		WriteBytes((void*)position1, 0x10, 1);
+		WriteBytes((void*)position2, 0x10, 1);
+	}
+
+	// Enable/Disable Fadeout
+	// check if bit at pos 2 is 1
+	if ((srmmSetting & (1 << 2)) > 0) {
+		// disable fadeout
+		WriteBytes((void*)alwaysShow, 0x90, 2);
+	}
+	else {
+		// overwrite back to default values
+		WriteBytes((void*)alwaysShow, 0x72, 1);
+		WriteBytes((void*)(alwaysShow + 0x1), 0x2C, 1);
+	}
 }
 
 void ModAltTab() {
@@ -53,7 +100,45 @@ void ModAltTab() {
 
 DWORD WINAPI Thread(HMODULE hModule) {
 	Sleep(10000);
-	ModSpeedometer();
+	//AllocConsole();
+	//freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+
+	MH_Initialize();
+	setInputHooks();
+
+	auto periodic = std::chrono::high_resolution_clock::now();
+
+	while (true) {
+		Sleep(1);
+
+		long long sincePeriodic = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - periodic).count();
+		if (sincePeriodic > 5000 * 1000) {
+			periodic = std::chrono::high_resolution_clock::now();
+			findBinds();
+			ModSpeedometer();
+		}
+		long long buffering = 8 * 1000;
+
+		if (jumpInputHolder.waitingToPress) {
+			auto jumpElapsed = std::chrono::high_resolution_clock::now() - jumpInputHolder.timestamp;
+			long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
+
+			if (sinceJump > buffering) {
+				jumpInputHolder.waitingToPress = false;
+				hookedInputProc(jumpInputHolder.a, jumpInputHolder.hWnd, jumpInputHolder.uMsg, jumpInputHolder.wParam, jumpInputHolder.lParam);
+			}
+		}
+
+		if (crouchInputHolder.waitingToPress) {
+			auto crouchElapsed = std::chrono::high_resolution_clock::now() - crouchInputHolder.timestamp;
+			long long sinceCrouch = std::chrono::duration_cast<std::chrono::microseconds>(crouchElapsed).count();
+
+			if (sinceCrouch > buffering && crouchInputHolder.waitingToPress) {
+				crouchInputHolder.waitingToPress = false;
+				hookedInputProc(crouchInputHolder.a, crouchInputHolder.hWnd, crouchInputHolder.uMsg, crouchInputHolder.wParam, crouchInputHolder.lParam);
+			}
+		}
+	}
 	return 0;
 }
 
