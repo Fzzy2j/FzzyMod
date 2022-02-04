@@ -49,6 +49,14 @@ uintptr_t FindAddress(uintptr_t ptr, std::vector<unsigned int> offsets)
 	return addr;
 }
 
+bool GetSRMMsetting(int pos) {
+	// voice_forcemicrecord convar
+	uintptr_t srmmSettingBase = (uintptr_t)GetModuleHandle("engine.dll") + 0x8A159C;
+	uintptr_t srmmSetting = *(uintptr_t*)srmmSettingBase;
+	// check for a 1 in the binary of srmmSetting at pos
+	return (srmmSetting & ((unsigned long long)1 << pos)) > 0;
+}
+
 void ModSpeedometer() {
 
 	uintptr_t engineBase = (uintptr_t)GetModuleHandle("engine.dll") + 0x14C7A700;
@@ -114,16 +122,25 @@ DWORD WINAPI Thread(HMODULE hModule) {
 		long long sincePeriodic = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - periodic).count();
 		if (sincePeriodic > 5000 * 1000) {
 			periodic = std::chrono::high_resolution_clock::now();
+
+			if (GetSRMMsetting(0)) ModSpeedometer();
+
+			if (!hooksEnabled && GetSRMMsetting(4)) {
+				enableInputHooks();
+			}
+			if (hooksEnabled && !GetSRMMsetting(4)) {
+				disableInputHooks();
+			}
+
 			findBinds();
 			ModSpeedometer();
 		}
-		long long buffering = 8 * 1000;
 
 		if (jumpInputHolder.waitingToPress) {
 			auto jumpElapsed = std::chrono::high_resolution_clock::now() - jumpInputHolder.timestamp;
 			long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
 
-			if (sinceJump > buffering) {
+			if (sinceJump > CROUCHKICK_BUFFERING) {
 				jumpInputHolder.waitingToPress = false;
 				hookedInputProc(jumpInputHolder.a, jumpInputHolder.hWnd, jumpInputHolder.uMsg, jumpInputHolder.wParam, jumpInputHolder.lParam);
 			}
@@ -133,7 +150,7 @@ DWORD WINAPI Thread(HMODULE hModule) {
 			auto crouchElapsed = std::chrono::high_resolution_clock::now() - crouchInputHolder.timestamp;
 			long long sinceCrouch = std::chrono::duration_cast<std::chrono::microseconds>(crouchElapsed).count();
 
-			if (sinceCrouch > buffering && crouchInputHolder.waitingToPress) {
+			if (sinceCrouch > CROUCHKICK_BUFFERING) {
 				crouchInputHolder.waitingToPress = false;
 				hookedInputProc(crouchInputHolder.a, crouchInputHolder.hWnd, crouchInputHolder.uMsg, crouchInputHolder.wParam, crouchInputHolder.lParam);
 			}
