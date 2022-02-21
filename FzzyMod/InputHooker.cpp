@@ -1,10 +1,11 @@
 #pragma comment(lib, "winmm.lib")
+//#pragma comment(lib,"d3d11.lib")
 #include "InputHooker.h"
 #include "include/MinHook.h"
+//#include <d3d11.h>
 #include <iostream>
 #include <mutex>
 #include <string>
-#include <bitset>
 #include <cmath>
 
 using namespace std;
@@ -12,10 +13,12 @@ using namespace std;
 typedef DWORD(WINAPI* XINPUTGETSTATE)(DWORD, XINPUT_STATE*);
 typedef LRESULT(__fastcall* INPUTSYSTEMPROC)(__int64, HWND, UINT, WPARAM, LPARAM);
 typedef void(__fastcall* UPDATEMOUSEBUTTONSTATE)(__int64, UINT, int);
+//typedef HRESULT(__stdcall* D3D11PRESENT) (IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags);
 
 static XINPUTGETSTATE hookedXInputGetState = nullptr;
 static INPUTSYSTEMPROC hookedInputSystemProc = nullptr;
 static UPDATEMOUSEBUTTONSTATE hookedUpdateMouseButtonState = nullptr;
+//static D3D11PRESENT hookedD3D11Present = nullptr;
 
 template <typename T>
 inline MH_STATUS MH_CreateHookEx(LPVOID pTarget, LPVOID pDetour, T** ppOriginal)
@@ -145,23 +148,31 @@ InputHolder jumpReleaseHolder;
 InputHolder crouchPressHolder;
 InputHolder crouchReleaseHolder;
 
-int icount = 0;
-auto itime = std::chrono::high_resolution_clock::now();
+auto jumptime = std::chrono::steady_clock::now();
+auto crouchtime = std::chrono::steady_clock::now();
 
 LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 
 	if (jumpPressHolder.waitingToSend) {
-		auto jumpElapsed = std::chrono::high_resolution_clock::now() - jumpPressHolder.timestamp;
-		long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
+		auto jumpElapsed = std::chrono::steady_clock::now() - jumpPressHolder.timestamp;
+		long long sinceJump = std::chrono::duration_cast<std::chrono::milliseconds>(jumpElapsed).count();
 
 		if (sinceJump > CROUCHKICK_BUFFERING) {
 			jumpPressHolder.waitingToSend = false;
 			hookedInputProc(jumpPressHolder.a, jumpPressHolder.hWnd, jumpPressHolder.uMsg, jumpPressHolder.wParam, jumpPressHolder.lParam);
+			auto e = std::chrono::steady_clock::now() - crouchtime;
+			long long s = std::chrono::duration_cast<std::chrono::milliseconds>(e).count();
+
+			if (s < 200) {
+				cout << "not crouchkick: " << s << "ms CROUCH IS EARLY" << endl;
+			}
+
+			jumptime = std::chrono::steady_clock::now();
 		}
 	}
 	if (jumpReleaseHolder.waitingToSend) {
-		auto jumpElapsed = std::chrono::high_resolution_clock::now() - jumpReleaseHolder.timestamp;
-		long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
+		auto jumpElapsed = std::chrono::steady_clock::now() - jumpReleaseHolder.timestamp;
+		long long sinceJump = std::chrono::duration_cast<std::chrono::milliseconds>(jumpElapsed).count();
 
 		if (sinceJump > CROUCHKICK_BUFFERING) {
 			jumpReleaseHolder.waitingToSend = false;
@@ -170,24 +181,32 @@ LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM
 	}
 
 	if (crouchPressHolder.waitingToSend) {
-		auto crouchElapsed = std::chrono::high_resolution_clock::now() - crouchPressHolder.timestamp;
-		long long sinceCrouch = std::chrono::duration_cast<std::chrono::microseconds>(crouchElapsed).count();
+		auto crouchElapsed = std::chrono::steady_clock::now() - crouchPressHolder.timestamp;
+		long long sinceCrouch = std::chrono::duration_cast<std::chrono::milliseconds>(crouchElapsed).count();
 
 		if (sinceCrouch > CROUCHKICK_BUFFERING) {
 			crouchPressHolder.waitingToSend = false;
 			hookedInputProc(crouchPressHolder.a, crouchPressHolder.hWnd, crouchPressHolder.uMsg, crouchPressHolder.wParam, crouchPressHolder.lParam);
+			auto e = std::chrono::steady_clock::now() - jumptime;
+			long long s = std::chrono::duration_cast<std::chrono::milliseconds>(e).count();
+
+			if (s < 200) {
+				cout << "not crouchkick: " << s << "ms JUMP IS EARLY" << endl;
+			}
+
+			crouchtime = std::chrono::steady_clock::now();
 		}
 	}
 	if (crouchReleaseHolder.waitingToSend) {
-		auto jumpElapsed = std::chrono::high_resolution_clock::now() - crouchReleaseHolder.timestamp;
-		long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
+		auto jumpElapsed = std::chrono::steady_clock::now() - crouchReleaseHolder.timestamp;
+		long long sinceJump = std::chrono::duration_cast<std::chrono::milliseconds>(jumpElapsed).count();
 
 		if (sinceJump > CROUCHKICK_BUFFERING) {
 			crouchReleaseHolder.waitingToSend = false;
 			hookedInputProc(crouchReleaseHolder.a, crouchReleaseHolder.hWnd, crouchReleaseHolder.uMsg, crouchReleaseHolder.wParam, crouchReleaseHolder.lParam);
 		}
 	}
-	
+
 	int clFrames = *(int*)(*(uintptr_t*)((uintptr_t)GetModuleHandle("materialsystem_dx11.dll") + 0x1A9F4A8) + 0x58C);
 	bool inLoadingScreen = *(bool*)((uintptr_t)GetModuleHandle("client.dll") + 0xB38C5C);
 	int tickCount = *(int*)((uintptr_t)GetModuleHandle("engine.dll") + 0x765A24);
@@ -195,9 +214,9 @@ LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM
 	if (clFrames <= 0 || inLoadingScreen || tickCount <= 23 || paused != 2) return hookedInputSystemProc(a, hWnd, uMsg, wParam, lParam);
 
 	WPARAM key = wParam;
-	if (uMsg == WM_RBUTTONDOWN || uMsg == WM_RBUTTONDBLCLK) key = VK_RBUTTON;
-	if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONDBLCLK) key = VK_LBUTTON;
-	if (uMsg == WM_XBUTTONDOWN || uMsg == WM_XBUTTONDBLCLK) {
+	if (uMsg == WM_RBUTTONDOWN || uMsg == WM_RBUTTONDBLCLK || uMsg == WM_RBUTTONUP) key = VK_RBUTTON;
+	if (uMsg == WM_LBUTTONDOWN || uMsg == WM_LBUTTONDBLCLK || uMsg == WM_LBUTTONUP) key = VK_LBUTTON;
+	if (uMsg == WM_XBUTTONDOWN || uMsg == WM_XBUTTONDBLCLK || uMsg == WM_XBUTTONUP) {
 		UINT button = GET_XBUTTON_WPARAM(wParam);
 		if (button == XBUTTON1) {
 			key = VK_XBUTTON1;
@@ -219,7 +238,7 @@ LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM
 			jumpReleaseHolder.lParam = lParam;
 
 			jumpReleaseHolder.waitingToSend = true;
-			jumpReleaseHolder.timestamp = std::chrono::high_resolution_clock::now();
+			jumpReleaseHolder.timestamp = std::chrono::steady_clock::now();
 
 			uMsg = WM_NULL;
 		}
@@ -231,7 +250,7 @@ LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM
 			crouchReleaseHolder.lParam = lParam;
 
 			crouchReleaseHolder.waitingToSend = true;
-			crouchReleaseHolder.timestamp = std::chrono::high_resolution_clock::now();
+			crouchReleaseHolder.timestamp = std::chrono::steady_clock::now();
 
 			uMsg = WM_NULL;
 		}
@@ -248,9 +267,9 @@ LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM
 			if ((key == jump[0] || key == jump[1]) && !jumpPressHolder.waitingToSend) {
 				if (crouchPressHolder.waitingToSend) {
 					crouchPressHolder.waitingToSend = false;
-					auto crouchElapsed = std::chrono::high_resolution_clock::now() - crouchPressHolder.timestamp;
-					long long sinceCrouch = std::chrono::duration_cast<std::chrono::microseconds>(crouchElapsed).count();
-					cout << "crouchkick: " << sinceCrouch / 100.0 << endl;
+					auto crouchElapsed = std::chrono::steady_clock::now() - crouchPressHolder.timestamp;
+					long long sinceCrouch = std::chrono::duration_cast<std::chrono::milliseconds>(crouchElapsed).count();
+					cout << "crouchkick: " << sinceCrouch << "ms CROUCH IS EARLY" << endl;
 
 					playSound();
 					hookedInputProc(crouchPressHolder.a, crouchPressHolder.hWnd, crouchPressHolder.uMsg, crouchPressHolder.wParam, crouchPressHolder.lParam);
@@ -263,7 +282,7 @@ LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM
 					jumpPressHolder.lParam = lParam;
 
 					jumpPressHolder.waitingToSend = true;
-					jumpPressHolder.timestamp = std::chrono::high_resolution_clock::now();
+					jumpPressHolder.timestamp = std::chrono::steady_clock::now();
 
 					uMsg = WM_NULL;
 				}
@@ -271,9 +290,9 @@ LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM
 			if ((key == crouch[0] || key == crouch[1]) && !crouchPressHolder.waitingToSend) {
 				if (jumpPressHolder.waitingToSend) {
 					jumpPressHolder.waitingToSend = false;
-					auto jumpElapsed = std::chrono::high_resolution_clock::now() - jumpPressHolder.timestamp;
-					long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
-					cout << "crouchkick: " << sinceJump / 100.0 << endl;
+					auto jumpElapsed = std::chrono::steady_clock::now() - jumpPressHolder.timestamp;
+					long long sinceJump = std::chrono::duration_cast<std::chrono::milliseconds>(jumpElapsed).count();
+					cout << "crouchkick: " << sinceJump << "ms JUMP IS EARLY" << endl;
 
 					playSound();
 					hookedInputProc(jumpPressHolder.a, jumpPressHolder.hWnd, jumpPressHolder.uMsg, jumpPressHolder.wParam, jumpPressHolder.lParam);
@@ -286,7 +305,7 @@ LRESULT __fastcall detourInputSystemProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM
 					crouchPressHolder.lParam = lParam;
 
 					crouchPressHolder.waitingToSend = true;
-					crouchPressHolder.timestamp = std::chrono::high_resolution_clock::now();
+					crouchPressHolder.timestamp = std::chrono::steady_clock::now();
 
 					uMsg = WM_NULL;
 				}
@@ -350,8 +369,8 @@ ControllerInputHolder controllerCrouchReleaseHolder;
 bool controllerJumpWasPressed;
 bool controllerCrouchWasPressed;
 
-auto flipTimestamp = std::chrono::high_resolution_clock::now();
-bool flip;
+//auto flipTimestamp = std::chrono::steady_clock::now();
+//bool flip;
 
 DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 {
@@ -366,9 +385,9 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 	float toRadians = (3.14159265f / 180.0f);
 	float magnitude = sqrt(pow(velX, 2) + pow(velY, 2));
 
-	auto elapsed = std::chrono::high_resolution_clock::now() - flipTimestamp;
-	long long since = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
-	if (since > 100 * 1000) {
+	auto elapsed = std::chrono::steady_clock::now() - flipTimestamp;
+	long long since = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+	if (since > 100) {
 		flip = !flip;
 	}
 
@@ -471,19 +490,19 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 		if (controllerCrouchPressHolder.waitingToSend) {
 			controllerCrouchPressHolder.waitingToSend = false;
 			playSound();
-			auto crouchElapsed = std::chrono::high_resolution_clock::now() - controllerCrouchPressHolder.timestamp;
-			long long sinceCrouch = std::chrono::duration_cast<std::chrono::microseconds>(crouchElapsed).count();
-			cout << "crouchkick: " << sinceCrouch / 1000.0 << endl;
+			auto crouchElapsed = std::chrono::steady_clock::now() - controllerCrouchPressHolder.timestamp;
+			long long sinceCrouch = std::chrono::duration_cast<std::chrono::milliseconds>(crouchElapsed).count();
+			cout << "crouchkick: " << sinceCrouch << endl;
 		}
 		else {
 			controllerJumpPressHolder.waitingToSend = true;
-			controllerJumpPressHolder.timestamp = std::chrono::high_resolution_clock::now();
+			controllerJumpPressHolder.timestamp = std::chrono::steady_clock::now();
 		}
 	}
 	// Jump Release
 	if (controllerJumpWasPressed && !jumpDown) {
 		controllerJumpReleaseHolder.waitingToSend = true;
-		controllerJumpReleaseHolder.timestamp = std::chrono::high_resolution_clock::now();
+		controllerJumpReleaseHolder.timestamp = std::chrono::steady_clock::now();
 	}
 
 	// Crouch Press
@@ -491,24 +510,24 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 		if (controllerJumpPressHolder.waitingToSend) {
 			controllerJumpPressHolder.waitingToSend = false;
 			playSound();
-			auto jumpElapsed = std::chrono::high_resolution_clock::now() - controllerJumpPressHolder.timestamp;
-			long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
-			cout << "crouchkick: " << sinceJump / 1000.0 << endl;
+			auto jumpElapsed = std::chrono::steady_clock::now() - controllerJumpPressHolder.timestamp;
+			long long sinceJump = std::chrono::duration_cast<std::chrono::milliseconds>(jumpElapsed).count();
+			cout << "crouchkick: " << sinceJump << endl;
 		}
 		else {
 			controllerCrouchPressHolder.waitingToSend = true;
-			controllerCrouchPressHolder.timestamp = std::chrono::high_resolution_clock::now();
+			controllerCrouchPressHolder.timestamp = std::chrono::steady_clock::now();
 		}
 	}
 	// Crouch Release
 	if (controllerCrouchWasPressed && !crouchDown) {
 		controllerCrouchReleaseHolder.waitingToSend = true;
-		controllerCrouchReleaseHolder.timestamp = std::chrono::high_resolution_clock::now();
+		controllerCrouchReleaseHolder.timestamp = std::chrono::steady_clock::now();
 	}
 
 	if (controllerJumpReleaseHolder.waitingToSend) {
-		auto jumpElapsed = std::chrono::high_resolution_clock::now() - controllerJumpReleaseHolder.timestamp;
-		long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
+		auto jumpElapsed = std::chrono::steady_clock::now() - controllerJumpReleaseHolder.timestamp;
+		long long sinceJump = std::chrono::duration_cast<std::chrono::milliseconds>(jumpElapsed).count();
 		if (sinceJump > CROUCHKICK_BUFFERING) {
 			controllerJumpReleaseHolder.waitingToSend = false;
 		}
@@ -517,8 +536,8 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 		}
 	}
 	if (controllerCrouchReleaseHolder.waitingToSend) {
-		auto crouchElapsed = std::chrono::high_resolution_clock::now() - controllerCrouchReleaseHolder.timestamp;
-		long long sinceCrouch = std::chrono::duration_cast<std::chrono::microseconds>(crouchElapsed).count();
+		auto crouchElapsed = std::chrono::steady_clock::now() - controllerCrouchReleaseHolder.timestamp;
+		long long sinceCrouch = std::chrono::duration_cast<std::chrono::milliseconds>(crouchElapsed).count();
 		if (sinceCrouch > CROUCHKICK_BUFFERING) {
 			controllerCrouchReleaseHolder.waitingToSend = false;
 		}
@@ -528,8 +547,8 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 	}
 
 	if (controllerJumpPressHolder.waitingToSend) {
-		auto jumpElapsed = std::chrono::high_resolution_clock::now() - controllerJumpPressHolder.timestamp;
-		long long sinceJump = std::chrono::duration_cast<std::chrono::microseconds>(jumpElapsed).count();
+		auto jumpElapsed = std::chrono::steady_clock::now() - controllerJumpPressHolder.timestamp;
+		long long sinceJump = std::chrono::duration_cast<std::chrono::milliseconds>(jumpElapsed).count();
 		if (sinceJump > CROUCHKICK_BUFFERING) {
 			controllerJumpPressHolder.waitingToSend = false;
 		}
@@ -538,8 +557,8 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 		}
 	}
 	if (controllerCrouchPressHolder.waitingToSend) {
-		auto crouchElapsed = std::chrono::high_resolution_clock::now() - controllerCrouchPressHolder.timestamp;
-		long long sinceCrouch = std::chrono::duration_cast<std::chrono::microseconds>(crouchElapsed).count();
+		auto crouchElapsed = std::chrono::steady_clock::now() - controllerCrouchPressHolder.timestamp;
+		long long sinceCrouch = std::chrono::duration_cast<std::chrono::milliseconds>(crouchElapsed).count();
 		if (sinceCrouch > CROUCHKICK_BUFFERING) {
 			controllerCrouchPressHolder.waitingToSend = false;
 		}
@@ -556,6 +575,23 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 
 void hookedInputProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	hookedInputSystemProc(a, hWnd, uMsg, wParam, lParam);
+}
+
+//HRESULT __stdcall detourD3D11Present(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags) {
+	//return hookedD3D11Present(pSwapChain, SyncInterval, Flags);
+//}
+
+BOOL CALLBACK enumWindowsCallback(HWND handle, LPARAM lParam)
+{
+	handle_data& data = *(handle_data*)lParam;
+	unsigned long process_id = 0;
+	GetWindowThreadProcessId(handle, &process_id);
+	if (data.process_id != process_id)
+	{
+		return TRUE;
+	}
+	data.best_handle = handle;
+	return FALSE;
 }
 
 bool allHooksSet;
@@ -698,6 +734,64 @@ void setInputHooks() {
 		cout << "hook XInputGetState failed: " << xinputResult << endl;
 		allHooksSet = false;
 	}
+
+	/*D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_11_0;
+	DXGI_SWAP_CHAIN_DESC swapChainDesc;
+	ZeroMemory(&swapChainDesc, sizeof(swapChainDesc));
+	swapChainDesc.BufferCount = 1;
+	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+
+	unsigned long pid = GetCurrentProcessId();
+	handle_data data;
+	data.process_id = pid;
+	data.best_handle = 0;
+	EnumWindows(enumWindowsCallback, (LPARAM)&data);
+
+	swapChainDesc.OutputWindow = data.best_handle;
+	swapChainDesc.SampleDesc.Count = 1;
+	swapChainDesc.Windowed = TRUE;
+	swapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	swapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+	ID3D11Device* pTmpDevice = NULL;
+	ID3D11DeviceContext* pTmpContext = NULL;
+	IDXGISwapChain* pTmpSwapChain;
+	if (FAILED(D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, NULL, &featureLevel, 1, D3D11_SDK_VERSION, &swapChainDesc, &pTmpSwapChain, &pTmpDevice, NULL, &pTmpContext)))
+	{
+		cout << "Failed to create directX device and swapchain!" << endl;
+		return;
+	}
+
+	__int64* pSwapChainVtable = NULL;
+	__int64* pDeviceContextVTable = NULL;
+	pSwapChainVtable = (__int64*)pTmpSwapChain;
+	pSwapChainVtable = (__int64*)pSwapChainVtable[0];
+	pDeviceContextVTable = (__int64*)pTmpContext;
+	pDeviceContextVTable = (__int64*)pDeviceContextVTable[0];
+
+	if (MH_CreateHook((LPBYTE)pSwapChainVtable[8], &detourD3D11Present, reinterpret_cast<LPVOID*>(&hookedD3D11Present)) != MH_OK)
+	{
+		cout << "Hooking Present failed!" << endl;
+	}
+	if (MH_EnableHook((LPBYTE)pSwapChainVtable[8]) != MH_OK)
+	{
+		cout << "Enabling of Present hook failed!" << endl;
+	}
+
+	if (MH_CreateHook((LPBYTE)pSwapChainVtable[DXGI_RESIZEBUFFERS_INDEX], &detourD3D11ResizeBuffers, reinterpret_cast<LPVOID*>(&hookedD3D11ResizeBuffers)) != MH_OK)
+	{
+		cout << "Hooking ResizeBuffers failed!" << endl;
+	}
+	if (MH_EnableHook((LPBYTE)pSwapChainVtable[DXGI_RESIZEBUFFERS_INDEX]) != MH_OK)
+	{
+		cout << "Enabling of ResizeBuffers hook failed!" << endl;
+	}
+
+	pTmpDevice->Release();
+	pTmpContext->Release();
+	pTmpSwapChain->Release(); */
 }
 
 bool hooksEnabled = false;

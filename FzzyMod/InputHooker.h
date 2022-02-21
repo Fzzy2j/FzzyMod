@@ -264,7 +264,12 @@ enum ButtonCode_t
 	KEY_XSTICK2_UP,								// VAXIS NEGATIVE
 };
 
-const long long CROUCHKICK_BUFFERING = 8 * 1000;
+struct handle_data {
+	unsigned long process_id;
+	HWND best_handle;
+};
+
+const long long CROUCHKICK_BUFFERING = 8;
 
 void hookedInputProc(__int64, HWND, UINT, WPARAM, LPARAM);
 

@@ -106,6 +106,8 @@ void ModAltTab() {
 	WriteBytes((void*)target, 0x75, 1);
 }
 
+//bool consoleCreated = false;
+
 DWORD WINAPI Thread(HMODULE hModule) {
 	Sleep(7000);
 	//AllocConsole();
@@ -113,7 +115,7 @@ DWORD WINAPI Thread(HMODULE hModule) {
 
 	MH_Initialize();
 
-	ModAltTab();
+	//ModAltTab();
 
 	while (true) {
 		Sleep(1000);
@@ -128,6 +130,18 @@ DWORD WINAPI Thread(HMODULE hModule) {
 		if (hooksEnabled && !GetSRMMsetting(4)) {
 			disableInputHooks();
 		}
+
+		/*if (GetSRMMsetting(5) && !consoleCreated) {
+			AllocConsole();
+			freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+			consoleCreated = true;
+		}
+		if (!GetSRMMsetting(5) && consoleCreated) {
+			HWND console = GetConsoleWindow();
+			FreeConsole();
+			PostMessage(console, WM_CLOSE, 0, 0);
+			consoleCreated = false;
+		}*/
 
 		findBinds();
 	}
