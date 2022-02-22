@@ -1,8 +1,8 @@
 #include <Windows.h>
 #include <chrono>
-#include <thread>
+//#include <thread>
 #include <iostream>
-#include <vector>
+//#include <vector>
 #include "InputHooker.h"
 #include "include/MinHook.h"
 
@@ -38,18 +38,7 @@ void WriteBytes(void* ptr, int byte, int size) {
 	VirtualProtect(ptr, size, curProtection, &temp);
 }
 
-uintptr_t FindAddress(uintptr_t ptr, std::vector<unsigned int> offsets)
-{
-	uintptr_t addr = ptr;
-	// runs through every offset of a pointer to get the address
-	for (unsigned int i = 0; i < offsets.size(); ++i) {
-		addr = *(uintptr_t*)addr;
-		addr += offsets[i];
-	}
-	return addr;
-}
-
-bool GetSRMMsetting(int pos) {
+bool SRMM_GetSetting(int pos) {
 	// voice_forcemicrecord convar
 	uintptr_t srmmSettingBase = (uintptr_t)GetModuleHandle("engine.dll") + 0x8A159C;
 	uintptr_t srmmSetting = *(uintptr_t*)srmmSettingBase;
@@ -74,8 +63,7 @@ void ModSpeedometer() {
 	uintptr_t position2 = speedometer + 0x8C;
 
 	// Include/Exclude Z Axis
-	// check if bit at pos 1 is 1
-	if (!GetSRMMsetting(1)) {
+	if (!SRMM_GetSetting(SRMM_SPEEDOMETER_INCLUDE_Z)) {
 		// overwrite to only include x&y axis
 		WriteBytes((void*)position1, 0x12, 1);
 		WriteBytes((void*)position2, 0x12, 1);
@@ -87,8 +75,7 @@ void ModSpeedometer() {
 	}
 
 	// Enable/Disable Fadeout
-	// check if bit at pos 2 is 1
-	if (!GetSRMMsetting(2)) {
+	if (!SRMM_GetSetting(SRMM_SPEEDOMETER_FADEOUT)) {
 		// disable fadeout
 		WriteBytes((void*)alwaysShow, 0x90, 2);
 	}
@@ -106,12 +93,12 @@ void ModAltTab() {
 	WriteBytes((void*)target, 0x75, 1);
 }
 
-//bool consoleCreated = false;
+bool consoleCreated = false;
 
 DWORD WINAPI Thread(HMODULE hModule) {
 	Sleep(7000);
-	AllocConsole();
-	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+	//AllocConsole();
+	//freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
 
 	MH_Initialize();
 
@@ -124,24 +111,24 @@ DWORD WINAPI Thread(HMODULE hModule) {
 
 		ModSpeedometer();
 
-		if (!hooksEnabled && GetSRMMsetting(4)) {
+		if (!hooksEnabled && SRMM_GetSetting(SRMM_CK_FIX)) {
 			enableInputHooks();
 		}
-		if (hooksEnabled && !GetSRMMsetting(4)) {
+		if (hooksEnabled && !SRMM_GetSetting(SRMM_CK_FIX)) {
 			disableInputHooks();
 		}
 
-		/*if (GetSRMMsetting(5) && !consoleCreated) {
+		if (SRMM_GetSetting(SRMM_ENABLE_CONSOLE) && !consoleCreated) {
 			AllocConsole();
 			freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
 			consoleCreated = true;
 		}
-		if (!GetSRMMsetting(5) && consoleCreated) {
+		if (!SRMM_GetSetting(SRMM_ENABLE_CONSOLE) && consoleCreated) {
 			HWND console = GetConsoleWindow();
 			FreeConsole();
 			PostMessage(console, WM_CLOSE, 0, 0);
 			consoleCreated = false;
-		}*/
+		}
 
 		findBinds();
 	}

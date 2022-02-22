@@ -581,18 +581,18 @@ void hookedInputProc(__int64 a, HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPar
 	//return hookedD3D11Present(pSwapChain, SyncInterval, Flags);
 //}
 
-BOOL CALLBACK enumWindowsCallback(HWND handle, LPARAM lParam)
-{
-	handle_data& data = *(handle_data*)lParam;
-	unsigned long process_id = 0;
-	GetWindowThreadProcessId(handle, &process_id);
-	if (data.process_id != process_id)
-	{
-		return TRUE;
-	}
-	data.best_handle = handle;
-	return FALSE;
-}
+//BOOL CALLBACK enumWindowsCallback(HWND handle, LPARAM lParam)
+//{
+//	handle_data& data = *(handle_data*)lParam;
+//	unsigned long process_id = 0;
+//	GetWindowThreadProcessId(handle, &process_id);
+//	if (data.process_id != process_id)
+//	{
+//		return TRUE;
+//	}
+//	data.best_handle = handle;
+//	return FALSE;
+//}
 
 bool mouseHookSet;
 bool xinputHookSet;
