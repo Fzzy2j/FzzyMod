@@ -719,8 +719,10 @@ void setInputHooks() {
 	if (!wndProcHookSet) {
 		INPUTSYSTEMPROC inputSystemProc = INPUTSYSTEMPROC(moduleBase + 0x8B80);
 		DWORD inputSystemProcResult = MH_CreateHookEx(inputSystemProc, &detourInputSystemProc, &hookedInputSystemProc);
-		if (inputSystemProcResult != MH_OK && inputSystemProcResult != MH_ERROR_ALREADY_CREATED) {
+		if (inputSystemProcResult != MH_OK) {
 			cout << "hook InputSystemProc failed" << inputSystemProcResult << endl;
+		}
+		else {
 			wndProcHookSet = true;
 		}
 	}
@@ -728,17 +730,21 @@ void setInputHooks() {
 	if (!mouseHookSet) {
 		UPDATEMOUSEBUTTONSTATE updateMouseButtonState = UPDATEMOUSEBUTTONSTATE(moduleBase + 0x8A20);
 		DWORD mouseStateResult = MH_CreateHookEx(updateMouseButtonState, &detourUpdateMouseButtonState, &hookedUpdateMouseButtonState);
-		if (mouseStateResult != MH_OK && mouseStateResult != MH_ERROR_ALREADY_CREATED) {
+		if (mouseStateResult != MH_OK) {
 			cout << "hook updateMouseButtonState failed" << mouseStateResult << endl;
+		}
+		else {
 			mouseHookSet = true;
 		}
 	}
 
 	if (!xinputHookSet) {
 		DWORD xinputResult = MH_CreateHookApiEx(L"XInput1_3", "XInputGetState", &detourXInputGetState, &hookedXInputGetState);
-		if (xinputResult != MH_OK && xinputResult != MH_ERROR_ALREADY_CREATED) {
+		if (xinputResult != MH_OK) {
 			cout << "hook XInputGetState failed: " << xinputResult << endl;
-			xinputHookSet = false;
+		}
+		else {
+			xinputHookSet = true;
 		}
 	}
 

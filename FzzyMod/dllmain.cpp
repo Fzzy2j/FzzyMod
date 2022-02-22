@@ -110,8 +110,8 @@ void ModAltTab() {
 
 DWORD WINAPI Thread(HMODULE hModule) {
 	Sleep(7000);
-	//AllocConsole();
-	//freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+	AllocConsole();
+	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
 
 	MH_Initialize();
 
