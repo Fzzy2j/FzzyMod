@@ -169,6 +169,8 @@
     <ClInclude Include="src\hde\table32.h" />
     <ClInclude Include="src\hde\table64.h" />
     <ClInclude Include="src\trampoline.h" />
+    <ClInclude Include="TASTools.h" />
+    <ClInclude Include="TF2Binds.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
@@ -178,6 +180,8 @@
     <ClCompile Include="src\hde\hde64.c" />
     <ClCompile Include="src\hook.c" />
     <ClCompile Include="src\trampoline.c" />
+    <ClCompile Include="TASTools.cpp" />
+    <ClCompile Include="TF2Binds.cpp" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="midimap.asm" />
