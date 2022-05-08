@@ -142,38 +142,23 @@ void ModLoadingScreenProgress() {
 	UPDATELOADINGSCREENPROGRESS updateLoading = UPDATELOADINGSCREENPROGRESS(moduleBase + 0x4D0610);
 	DWORD updateLoadingResult = MH_CreateHookEx(updateLoading, &detourUpdateLoadingScreenProgress, &hookedUpdateLoadingScreenProgress);
 	if (updateLoadingResult != MH_OK) {
-		if (consoleEnabled) std::cout << "hook UpdateLoading failed" << updateLoadingResult << std::endl;
+		m_sourceConsole->Print(("hook UpdateLoading failed" + std::to_string(updateLoadingResult) + "\n").c_str());
 	}
 }
 
 DWORD WINAPI Thread(HMODULE hModule) {
 	Sleep(7000);
-	AllocConsole();
-	freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
+	//AllocConsole();
+	//freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
 
 	MH_Initialize();
 	InitializeTF2Binds();
 	ModLoadingScreenProgress();
-	//hookDirectXPresent();
-
-	//ModAltTab();
 
 	m_sourceConsole.reset(new SourceConsole());
 
 	while (true) {
 		Sleep(1000);
-
-		/*if (SRMM_GetSetting(SRMM_ENABLE_CONSOLE) && !consoleEnabled) {
-			AllocConsole();
-			freopen_s((FILE**)stdout, "CONOUT$", "w", stdout);
-			consoleEnabled = true;
-		}
-		if (!SRMM_GetSetting(SRMM_ENABLE_CONSOLE) && consoleEnabled) {
-			HWND console = GetConsoleWindow();
-			FreeConsole();
-			PostMessage(console, WM_CLOSE, 0, 0);
-			consoleEnabled = false;
-		}*/
 
 		setInputHooks();
 

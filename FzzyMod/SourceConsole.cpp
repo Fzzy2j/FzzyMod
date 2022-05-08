@@ -60,12 +60,12 @@ __int64 SpewFuncHook(IVEngineServer* engineServer, SpewType_t type, const char* 
 
 	if (type == SPEW_MESSAGE)
 	{
-		m_sourceConsole->Print("SERVER (SPEW_MESSAGE): ");
+		m_sourceConsole->Print("SERVER: ");
 		m_sourceConsole->Print(pTempBuffer);
 	}
 	else if (type == SPEW_WARNING)
 	{
-		m_sourceConsole->Print("SERVER (SPEW_WARNING): ");
+		m_sourceConsole->Print("SERVER: ");
 		m_sourceConsole->Print(pTempBuffer);
 	}
 	else

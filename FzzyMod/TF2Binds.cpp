@@ -295,7 +295,7 @@ void findBinds() {
 		for (int i = 0; i < 100; i++) {
 			if (bound[i] == '\0' && i == sizeof(jumpSearch)) {
 				if (jumpIndex >= sizeof(jumpBinds)) break;
-				jumpBinds[jumpIndex] = s_pButtonCodeToVirtual[buttonCode];
+				jumpBinds[jumpIndex] = buttonCode;
 				jumpIndex++;
 				break;
 			}
@@ -306,7 +306,7 @@ void findBinds() {
 		for (int i = 0; i < 100; i++) {
 			if (bound[i] == '\0' && i == sizeof(crouchSearch)) {
 				if (crouchIndex >= sizeof(crouchBinds)) break;
-				crouchBinds[crouchIndex] = s_pButtonCodeToVirtual[buttonCode];
+				crouchBinds[crouchIndex] = buttonCode;
 				crouchIndex++;
 				break;
 			}
@@ -317,7 +317,7 @@ void findBinds() {
 		for (int i = 0; i < 100; i++) {
 			if (bound[i] == '\0' && i == sizeof(forwardSearch)) {
 				if (forwardIndex >= sizeof(forwardBinds)) break;
-				forwardBinds[forwardIndex] = s_pButtonCodeToVirtual[buttonCode];
+				forwardBinds[forwardIndex] = buttonCode;
 				forwardIndex++;
 				break;
 			}
@@ -326,7 +326,7 @@ void findBinds() {
 		for (int i = 0; i < 100; i++) {
 			if (bound[i] == '\0' && i == sizeof(backSearch)) {
 				if (backIndex >= sizeof(backBinds)) break;
-				backBinds[backIndex] = s_pButtonCodeToVirtual[buttonCode];
+				backBinds[backIndex] = buttonCode;
 				backIndex++;
 				break;
 			}
@@ -335,7 +335,7 @@ void findBinds() {
 		for (int i = 0; i < 100; i++) {
 			if (bound[i] == '\0' && i == sizeof(leftSearch)) {
 				if (leftIndex >= sizeof(leftBinds)) break;
-				leftBinds[leftIndex] = s_pButtonCodeToVirtual[buttonCode];
+				leftBinds[leftIndex] = buttonCode;
 				leftIndex++;
 				break;
 			}
@@ -344,7 +344,7 @@ void findBinds() {
 		for (int i = 0; i < 100; i++) {
 			if (bound[i] == '\0' && i == sizeof(rightSearch)) {
 				if (rightIndex >= sizeof(rightBinds)) break;
-				rightBinds[forwardIndex] = s_pButtonCodeToVirtual[buttonCode];
+				rightBinds[forwardIndex] = buttonCode;
 				rightIndex++;
 				break;
 			}

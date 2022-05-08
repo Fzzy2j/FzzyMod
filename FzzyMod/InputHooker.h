@@ -3,17 +3,7 @@
 #include <chrono>
 #include <Xinput.h>
 #include "TASTools.h"
-
-struct InputHolder {
-	__int64 a;
-	HWND hWnd;
-	UINT uMsg;
-	WPARAM wParam;
-	LPARAM lParam;
-
-	bool waitingToSend;
-	std::chrono::steady_clock::time_point timestamp;
-};
+#include "TF2Binds.h"
 
 struct ControllerInputHolder {
 	int buttonIndex;
@@ -32,13 +22,43 @@ enum SRMM_settings
 	SRMM_ENABLE_CONSOLE,
 };
 
-const long long CROUCHKICK_BUFFERING = 8;
+enum InputEventType_t
+{
+	IE_ButtonPressed = 0,	// m_nData contains a ButtonCode_t
+	IE_ButtonReleased,		// m_nData contains a ButtonCode_t
+	IE_ButtonDoubleClicked,	// m_nData contains a ButtonCode_t
+	IE_AnalogValueChanged,	// m_nData contains an AnalogCode_t, m_nData2 contains the value
 
-void hookedInputProc(__int64, HWND, UINT, WPARAM, LPARAM);
+	IE_FirstSystemEvent = 100,
+	IE_Quit = IE_FirstSystemEvent,
+	IE_ControllerInserted,	// m_nData contains the controller ID
+	IE_ControllerUnplugged,	// m_nData contains the controller ID
+
+	IE_FirstVguiEvent = 1000,	// Assign ranges for other systems that post user events here
+	IE_FirstAppEvent = 2000,
+};
+
+struct InputHolder {
+	__int64 a;
+	InputEventType_t nType;
+	int nTick;
+	ButtonCode_t scanCode;
+	ButtonCode_t virtualCode;
+	int data3;
+
+	bool waitingToSend;
+	std::chrono::steady_clock::time_point timestamp;
+};
+
+struct handle_data {
+	unsigned long process_id;
+	HWND best_handle;
+};
+
+const long long CROUCHKICK_BUFFERING = 8;
 
 extern bool hooksEnabled;
 extern bool allHooksSet;
-extern bool consoleEnabled;
 
 void simulateKeyDown(WPARAM key);
 void simulateKeyUp(WPARAM key);
