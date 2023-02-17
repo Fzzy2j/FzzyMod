@@ -1,8 +1,10 @@
 #pragma once
 #include <Xinput.h>
+#include "InputHooker.h"
+#include "TF2Binds.h"
 
-void TASProcessXInput(XINPUT_STATE* pState);
+void TASProcessXInput(XINPUT_STATE*& pState);
 
-void TASProcessInputProc(UINT &uMsg, WPARAM &wParam, LPARAM &lParam);
+bool TASProcessInput(uintptr_t& a, InputEventType_t& nType, int& nTick, ButtonCode_t& scanCode, ButtonCode_t& virtualCode, int& data3);
 
-void hookDirectXPresent();
+void TASFrameHook();

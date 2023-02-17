@@ -1,15 +1,14 @@
 #pragma once
 #include <Windows.h>
-#include <chrono>
 #include <Xinput.h>
-#include "TASTools.h"
 #include "TF2Binds.h"
+#include <vector>
 
 struct ControllerInputHolder {
 	int buttonIndex;
 
 	bool waitingToSend;
-	std::chrono::steady_clock::time_point timestamp;
+	long long timestamp;
 };
 
 enum SRMM_settings
@@ -19,7 +18,6 @@ enum SRMM_settings
 	SRMM_SPEEDOMETER_FADEOUT,
 	SRMM_TAS_MODE,
 	SRMM_CK_FIX,
-	SRMM_ENABLE_CONSOLE,
 };
 
 enum InputEventType_t
@@ -39,15 +37,16 @@ enum InputEventType_t
 };
 
 struct InputHolder {
-	__int64 a;
+	uintptr_t a;
 	InputEventType_t nType;
 	int nTick;
 	ButtonCode_t scanCode;
 	ButtonCode_t virtualCode;
 	int data3;
+	int data4;
 
 	bool waitingToSend;
-	std::chrono::steady_clock::time_point timestamp;
+	long long timestamp;
 };
 
 struct handle_data {
@@ -57,11 +56,15 @@ struct handle_data {
 
 const long long CROUCHKICK_BUFFERING = 8;
 
-extern bool hooksEnabled;
-extern bool allHooksSet;
+void spoofPostEvent(InputEventType_t, int, ButtonCode_t, ButtonCode_t, int);
 
-void simulateKeyDown(WPARAM key);
-void simulateKeyUp(WPARAM key);
 void setInputHooks();
+void hookD3DPresent();
 void enableInputHooks();
 void disableInputHooks();
+
+bool FindDMAAddy(uintptr_t, std::vector<unsigned int>, uintptr_t&);
+uintptr_t FindAddress(uintptr_t, std::vector<unsigned int>);
+uintptr_t FindAddress(uintptr_t);
+bool IsMemoryReadable(const uintptr_t);
+bool SRMM_GetSetting(int);
