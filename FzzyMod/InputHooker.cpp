@@ -64,7 +64,7 @@ DWORD WINAPI detourXInputGetState(DWORD dwUserIndex, XINPUT_STATE* pState)
 {
 	DWORD toReturn = hookedXInputGetState(dwUserIndex, pState);
 
-	if (SRMM_GetSetting(SRMM_TAS_MODE)) TASProcessXInput(pState);
+	//if (SRMM_GetSetting(SRMM_TAS_MODE)) TASProcessXInput(pState);
 
 	//pState->Gamepad.sThumbLX = (short)32767;
 	//m_sourceConsole->Print(("LY IMMEDIATE: " + to_string(pState->Gamepad.sThumbLY) + "\n").c_str());
@@ -269,7 +269,7 @@ void spoofPostEvent(InputEventType_t nType, int nTick, ButtonCode_t scanCode, Bu
 unsigned int __fastcall detourPostEvent(uintptr_t a, InputEventType_t nType, int nTick, ButtonCode_t scanCode, ButtonCode_t virtualCode, int data3) {
 	try {
 		ButtonCode_t key = scanCode;
-		if (SRMM_GetSetting(SRMM_TAS_MODE) && TASProcessInput(a, nType, nTick, scanCode, virtualCode, data3)) return 0;
+		//if (SRMM_GetSetting(SRMM_TAS_MODE) && TASProcessInput(a, nType, nTick, scanCode, virtualCode, data3)) return 0;
 		if (SRMM_GetSetting(SRMM_CK_FIX)) {
 			if (nType == IE_ButtonPressed) {
 				if ((key == jumpBinds[0] || key == jumpBinds[1]) && !jumpPressHolder.waitingToSend) {
@@ -391,7 +391,7 @@ void __fastcall detourUpdate() {
 		half = !half;
 		if (half) return;
 
-		if (SRMM_GetSetting(SRMM_TAS_MODE)) TASFrameHook();
+		//if (SRMM_GetSetting(SRMM_TAS_MODE)) TASFrameHook();
 
 		if (SRMM_GetSetting(SRMM_CK_FIX)) {
 			if (jumpPressHolder.waitingToSend) {
